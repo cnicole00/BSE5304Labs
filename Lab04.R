@@ -381,6 +381,7 @@ TMWB=BasinData
 # 3) Run TMWB via Function 
 #
 #
+source(https://raw.githubusercontent.com/vtdrfuka/BSE5304Labs/main/R/TISnow.R)
 # First functions from last week we already have, Wetting, Drying, 
 # and Wetting above capacity 
 # 
@@ -402,7 +403,7 @@ soil_wetting_above_capacity<-function(AWprev,dP_func,AWC_func){
   excess_func<-AWprev+dP_func-AWC_func
   c(AW_func,excess_func)
 }
-
+# source()
 #
 # Lets make one out of our Temperature Index Snow Model
 #
@@ -414,6 +415,13 @@ Tmlt = SFTmp  # Assumed to be same as SnowFall Temperature
 Tlag = 1  # referred to as TIMP in SWAT input (Table 1)
 
 TISnow=function(WBData,SFTmp=2,bmlt6=4.5,bmlt12=0.0,Tmlt=3,Tlag=1){
+  
+  WBData=TMWB
+  SFTmp = 3  # referred to as SFTMP in SWAT input (Table 1)
+  bmlt6 = 4.5   # referred to as SMFMX in SWAT input (Table 1)
+  bmlt12 = 0.0  # referred to as SMFMN in SWAT input adjusted for season
+  Tmlt = SFTmp  # Assumed to be same as SnowFall Temperature
+  Tlag = 1  # referred to as TIMP in SWAT input (Table 1)
   WBData$AvgTemp=(WBData$MaxTemp-WBData$MinTemp)/2
   WBData$bmlt = (bmlt6 + bmlt12)/2 + (bmlt6 - bmlt12)/2 * 
     sin(2*pi/365*(julian(WBData$date,origin = as.Date("2000-01-01"))-81))
@@ -424,13 +432,14 @@ TISnow=function(WBData,SFTmp=2,bmlt6=4.5,bmlt12=0.0,Tmlt=3,Tlag=1){
   WBData$SNOfall = 0  # Snow Fall (mm)
   attach(WBData)
   for (t in 2:length(date)){
+    SNOmlt[t]=0
     Tsno[t]= Tsno[t-1] * (1.0-Tlag) +  AvgTemp[t] * Tlag
     if(AvgTemp[t] < SFTmp){
       SNO[t]= SNO[t-1] + P[t]
       #
       # Eeee... I forgot to save my snowfall!
       #
-      SNOfall=P[t]
+      SNOfall[t]=P[t]
     }  else {
       SNOmlt[t]= bmlt[t] * SNO[t-1] * ((Tsno[t]+MaxTemp[t])/2 - Tmlt) 
       SNOmlt[t]= min(SNOmlt[t],SNO[t-1])
@@ -443,14 +452,14 @@ TISnow=function(WBData,SFTmp=2,bmlt6=4.5,bmlt12=0.0,Tmlt=3,Tlag=1){
   WBData$Tsno=Tsno
   WBData$SNO=SNO
   WBData$SNOmlt=SNOmlt
-  WBData$SNOmlt=SNOfall
-  rm(list=c("SNO", "SNOmlt", "Tsno"))
+  WBData$SNOfall=SNOfall
+  rm(list=c("SNO", "SNOmlt", "Tsno","SNOfall"))
   return(data.frame(Tsno=WBData$Tsno,SNO=WBData$SNO,SNOmlt=WBData$SNOmlt,SNOfall=WBData$SNOfall))
 }
+#return only a few things you want to return from the model
 
 
-
-SNO_df=TISnow(TMWB)
+SNO_df=TISnow(TMWB,SFTmp=2,bmlt6=3,bmlt12=0,Tmlt=3,Tlag=1)
 TMWB$SNO=SNO_df$SNO
 TMWB$SNOmlt=SNO_df$SNOmlt
 TMWB$SNOfall=SNO_df$SNOfall
@@ -460,13 +469,17 @@ detach(TMWB)
 # Our PET Model we will borrow from EcoHydrology
 #
 ?PET_fromTemp
-TMWB$PET=PET_fromTemp(Jday=(1+as.POSIXlt(date)$yday),Tmax_C = MaxTemp,Tmin_C = MinTemp,
+attach(TMWB)
+TMWB$PET=PET_fromTemp(Jday=(1+as.POSIXlt(TMWB$date)$yday),
+                      Tmax_C = TMWB$MaxTemp,
+                      Tmin_C = TMWB$MinTemp,
                       lat_radians = myflowgage$declat*pi/180) * 1000
-plot(date,TMWB$PET)
+plot(TMWB$date,TMWB$PET)
 
+TMWB
 
 # Our TMWB Model
-
+detach(TMWB)
 attach(TMWB)
 detach(TMWB)
 
@@ -594,12 +607,17 @@ TMWB$S=S
 TMWB$Qpred=Qpred # UPDATE vector BEFORE DETACHING
 detach(TMWB) # IMPORTANT TO DETACH
 rm(list=c("Qpred","S"))
+return()
 
 #Make a plot that has Qmm, P,and Qpred over time
-plot(TMWB$date,P,col="black")
-lines(date,Qmm,type = "l",col="black")
-lines(date,Qpred,col="blue")
+plot(TMWB$date,TMWB$P,col="black")
+lines(TMWB$date,TMWB$Qmm,type = "l",col="red")
+lines(TMWB$date,TMWB$Qpred,col="blue")
+plot(TMWB$Qmm,TMWB$Qpred)
 
+NSE=function(Yobs,Ysim){
+  return(1-sum(yobs-Ysim)^2,na.rm=TRUE)/sum((Yobs))
+}
 #
 # Functionalizing big big big time
 # Here is a great place to make this into a function!
