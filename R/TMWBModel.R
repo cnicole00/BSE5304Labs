@@ -125,7 +125,4 @@ plot(TMWBdf$date,TMWBdf$P,col="black")
 lines(TMWBdf$date,TMWBdf$Qmm,type = "l",col="red")
 lines(TMWBdf$date,TMWBdf$Qpred,col="blue")
 plot(TMWBdf$Qmm,TMWBdf$Qpred) # see how close you are to one-to-one
-
-NSE=function(Yobs,Ysim){
-  return(1-sum(yobs-Ysim)^2,na.rm=TRUE)/sum((Yobs-mean(Yobs,na.rm=TRUE))^2,na.rm=TRUE)
-}
+        

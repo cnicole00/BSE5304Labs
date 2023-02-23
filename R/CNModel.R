@@ -87,9 +87,9 @@ rm(list=c("AW", "dP", "ET", "Excess", "Qpred", "S"))
 detach(CNmodeldf)
 
 NSeff(CNmodeldf$Qpred,CNmodeldf$Qmm)
-[1] -1.332735
+#[1] -1.332735
 plot(CNmodeldf$Qpred)
 plot(CNmodeldf$Qmm)
 mean(CNmodeldf$Qmm)
-[1] 1.613816
+#[1] 1.613816
 mean(CNmodeldf$Qpred)
